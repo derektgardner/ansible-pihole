@@ -1,0 +1,16 @@
+vrrp_instance PIHOLE {
+  state {{ vrrp_state }}
+  interface {{ ansible_default_ipv4.interface }}
+  virtual_router_id 1
+  priority {{ ka_priority }}
+  advert_int 1
+
+  authentication {
+    auth_type AH
+    auth_pass {{ ka_pass }}
+  }
+
+  virtual_ipaddress {
+    {{ virtual_ip }}
+  }
+}

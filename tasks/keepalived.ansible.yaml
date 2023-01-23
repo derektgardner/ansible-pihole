@@ -1,0 +1,17 @@
+---
+- name: Install keepalived and libipset13.
+  ansible.builtin.apt:
+    name:
+      - keepalived
+      - libipset13
+
+- name: Copy keepallive.conf template to Pi.
+  ansible.builtin.template:
+    src: 'templates/keepalived.conf.j2'
+    dest: "/etc/keepalived/keepalived.conf"
+    mode: 0644
+
+- name: Start keepalived
+  ansible.builtin.systemd:
+    state: started
+    name: keepalived

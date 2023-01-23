@@ -1,0 +1,140 @@
+---
+- name: Create Pi-hole folder on Pi.
+  ansible.builtin.file:
+    path: "{{ config_dir }}/pi-hole"
+    state: directory
+    mode: 0755
+  become: false
+
+- name: Copy Pi-hole docker-compose template to Pi.
+  ansible.builtin.template:
+    src: templates/pihole-docker-compose.yaml.j2
+    dest: "{{ config_dir }}/pi-hole/docker-compose.yaml"
+    mode: '0640'
+  become: false
+  notify: Restart pihole
+
+- name: Make sure Pi-hole is running.
+  community.docker.docker_compose:
+    project_src: "{{ config_dir }}/pi-hole/"
+    build: false
+  become: false
+
+# I've found that Raspberry Pis don't propagate files quick enough, resulting in the next play failing.
+# This pause allows even older Raspberry Pis time to propagate all the files.
+- name: Pause to let files propagate.
+  ansible.builtin.pause:
+    seconds: 10
+
+- name: Set upstream DNS server 1 to user-defined value.
+  ansible.builtin.lineinfile:
+    search_string: 'PIHOLE_DNS_1'
+    line: PIHOLE_DNS_1={{ primary_DNS }}
+    path: '{{ config_dir }}/pi-hole/etc-pihole/setupVars.conf'
+  retries: 3
+  when: primary_DNS is defined and primary_DNS != ''
+
+- name: Set upstream DNS server 1 to Cloudflare. No user-defined DNS found.
+  ansible.builtin.lineinfile:
+    search_string: 'PIHOLE_DNS_1'
+    line: PIHOLE_DNS_1=1.1.1.1
+    path: '{{ config_dir }}/pi-hole/etc-pihole/setupVars.conf'
+  retries: 3
+  when: primary_DNS is undefined or primary_DNS == ''
+
+- name: Set upstream DNS server 2.
+  ansible.builtin.lineinfile:
+    search_string: 'PIHOLE_DNS_2'
+    line: PIHOLE_DNS_2={{ secondary_DNS }}
+    path: '{{ config_dir }}/pi-hole/etc-pihole/setupVars.conf'
+  when: secondary_DNS is defined and secondary_DNS != ''
+
+- name: Set upstream DNS server 2 to Google. No user-defined DNS found.
+  ansible.builtin.lineinfile:
+    search_string: 'PIHOLE_DNS_2'
+    line: PIHOLE_DNS_2=8.8.8.8
+    path: '{{ config_dir }}/pi-hole/etc-pihole/setupVars.conf'
+  when: secondary_DNS is undefined or secondary_DNS == ''
+
+- name: Install sqlite3
+  ansible.builtin.apt:
+    name: sqlite3
+    state: present
+
+- name: Insert ad lists into the gravity database.
+  ansible.builtin.command:
+    cmd: >
+      sqlite3 {{ config_dir }}/pi-hole/etc-pihole/gravity.db
+      "INSERT INTO adlist (address, enabled, comment)
+        VALUES ('{{ item }}', 1, 'standard insert');"
+  with_items:
+    - "{{ adlist_links }}"
+  register: command_result
+  failed_when:
+    - command_result.rc != 0
+    - "'UNIQUE constraint failed' not in command_result.stderr"
+  changed_when: command_result.rc == 0
+
+- name: Insert exact whitelist domains into the gravity database.
+  ansible.builtin.command:
+    cmd: >
+      sqlite3 {{ config_dir }}/pi-hole/etc-pihole/gravity.db
+       "INSERT INTO domainlist (domain, type, enabled, comment)
+       VALUES ('{{ item }}', 0, 1, 'standard insert');"
+  with_items:
+    - '{{ exact_whitelist }}'
+  register: command_result
+  failed_when:
+    - command_result.rc == 1
+    - "'UNIQUE constraint failed' not in command_result.stderr"
+  changed_when: command_result.rc == 0
+
+- name: Insert exact blacklist domains into the gravity database.
+  ansible.builtin.command:
+    cmd: >
+      sqlite3 {{ config_dir }}/pi-hole/etc-pihole/gravity.db
+       "INSERT INTO domainlist (domain, type, enabled, comment)
+       VALUES ('{{ item }}', 1, 1, 'standard insert');"
+  with_items:
+    - "{{ exact_blacklist }}"
+  register: command_result
+  failed_when:
+    - command_result.rc == 1
+    - "'UNIQUE constraint failed' not in command_result.stderr"
+  changed_when: command_result.rc == 0
+
+- name: Insert regex whitelist domains into the gravity database.
+  ansible.builtin.command:
+    cmd: >
+      sqlite3 {{ config_dir }}/pi-hole/etc-pihole/gravity.db
+       "INSERT INTO domainlist (domain, type, enabled, comment)
+       VALUES ('{{ item }}', 2, 1, 'standard insert');"
+  with_items:
+    - "{{ regex_whitelist }}"
+  register: command_result
+  failed_when:
+    - command_result.rc == 1
+    - "'UNIQUE constraint failed' not in command_result.stderr"
+  changed_when: command_result.rc == 0
+
+- name: Insert regex blacklist domains into the gravity database.
+  ansible.builtin.command:
+    cmd: >
+      sqlite3 {{ config_dir }}/pi-hole/etc-pihole/gravity.db
+       "INSERT INTO domainlist (domain, type, enabled, comment)
+       VALUES ('{{ item }}', 3, 1, 'standard insert');"
+  with_items:
+    - "{{ regex_blacklist }}"
+  register: command_result
+  failed_when:
+    - command_result.rc == 1
+    - "'UNIQUE constraint failed' not in command_result.stderr"
+  changed_when: command_result.rc == 0
+
+- name: Update Gravity.
+  ansible.builtin.command:
+    cmd: docker exec pihole bash pihole -g
+  become: false
+  register: command_result
+  failed_when: "'blocking is enabled' not in command_result.stdout"
+  changed_when: "'blocking is enabled' in command_result.stdout"

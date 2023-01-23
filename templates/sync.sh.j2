@@ -1,0 +1,19 @@
+# /bin/bash
+
+if [[ $(ip a | grep {{ virtual_ip }}) ]]; then
+  sqlite3 {{ config_dir }}/pi-hole/etc-pihole/gravity.db ".timeout 1000" ".backup {{ config_dir }}/pi-hole/sync/gravity.backup"
+else
+  sleep 120
+
+  rsync -a -e "ssh -i {{ config_dir }}/.ssh/pihole_sync" {{ virtual_ip }}:{{ config_dir }}/pi-hole/sync/gravity.backup {{ config_dir }}/pi-hole/sync
+  if [ $? == 0 ]; then
+    docker stop pihole
+    sudo sqlite3 {{ config_dir }}/pi-hole/etc-pihole/gravity.db ".restore {{ config_dir }}/pi-hole/sync/gravity.backup"
+    docker start pihole
+  fi
+
+  rsync -a -e "ssh -i {{ config_dir }}/.ssh/pihole_sync" {{ virtual_ip }}:{{ config_dir }}/pi-hole/etc-pihole/custom.list {{ config_dir }}/pi-hole/sync
+  if [ $? == 0 ]; then
+    sudo cp {{ config_dir }}/pi-hole/sync/custom.list {{ config_dir }}/pi-hole/etc-pihole
+  fi
+fi

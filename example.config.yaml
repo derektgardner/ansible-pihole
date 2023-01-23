@@ -1,0 +1,92 @@
+---
+# Absolute path where configuration files will be stored.
+# The ansible user should have read/write access to this directory.
+# Example: '/home/pi/'
+config_dir: '/home/pi'
+
+ansible_user: 'pi'
+
+# The password used to access the admin web interface.
+# You should use ansible-vault to encrypt the password below.
+admin_web_password: 'your-super-secret-password-here'
+
+######
+# KEEPALIVED SETTINGS 
+######
+
+# The password used by keepalived to communicate.
+# You should use ansible-vault to encrypt the password below.
+ka_pass: 'your-super-secret-password-here'
+
+virtual_ip : 192.168.0.12
+
+######
+# PI-HOLE SETTINGS 
+######
+
+# The upstream DNS servers that pihole should use.
+# If you don't set this, your primary DNS will be set to Cloudflare and 
+# your secondary DNS set to Google.
+primary_DNS: ''
+secondary_DNS: ''
+
+adlist_links:
+  - "https://raw.githubusercontent.com/PolishFiltersTeam/KADhosts/master/KADhosts.txt"
+  - "https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.Spam/hosts"
+  - "https://v.firebog.net/hosts/static/w3kbl.txt"
+  - "https://adaway.org/hosts.txt"
+  - "https://v.firebog.net/hosts/AdguardDNS.txt"
+  - "https://v.firebog.net/hosts/Admiral.txt"
+  - "https://raw.githubusercontent.com/anudeepND/blacklist/master/adservers.txt"
+  - "https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt"
+  - "https://v.firebog.net/hosts/Easylist.txt"
+  - "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext"
+  - "https://raw.githubusercontent.com/FadeMind/hosts.extras/master/UncheckyAds/hosts"
+  - "https://raw.githubusercontent.com/bigdargon/hostsVN/master/hosts"
+  - "https://v.firebog.net/hosts/Easyprivacy.txt"
+  - "https://v.firebog.net/hosts/Prigent-Ads.txt"
+  - "https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.2o7Net/hosts"
+  - "https://raw.githubusercontent.com/crazy-max/WindowsSpyBlocker/master/data/hosts/spy.txt"
+  - "https://hostfiles.frogeye.fr/firstparty-trackers-hosts.txt"
+  - "https://raw.githubusercontent.com/DandelionSprout/adfilt/master/Alternate%20versions%20Anti-Malware%20List/AntiMalwareHosts.txt"
+  - "https://osint.digitalside.it/Threat-Intel/lists/latestdomains.txt"
+  - "https://s3.amazonaws.com/lists.disconnect.me/simple_malvertising.txt"
+  - "https://v.firebog.net/hosts/Prigent-Crypto.txt"
+  - "https://raw.githubusercontent.com/FadeMind/hosts.extras/master/add.Risk/hosts"
+  - "https://bitbucket.org/ethanr/dns-blacklists/raw/8575c9f96e5b4a1308f2f12394abd86d0927a4a0/bad_lists/Mandiant_APT1_Report_Appendix_D.txt"
+  - "https://phishing.army/download/phishing_army_blocklist_extended.txt"
+  - "https://gitlab.com/quidsup/notrack-blocklists/raw/master/notrack-malware.txt"
+  - "https://v.firebog.net/hosts/RPiList-Malware.txt"
+  - "https://v.firebog.net/hosts/RPiList-Phishing.txt"
+  - "https://raw.githubusercontent.com/Spam404/lists/master/main-blacklist.txt"
+  - "https://raw.githubusercontent.com/AssoEchap/stalkerware-indicators/master/generated/hosts"
+  - "https://urlhaus.abuse.ch/downloads/hostfile/"
+  - "https://zerodot1.gitlab.io/CoinBlockerLists/hosts_browser"
+
+exact_whitelist:
+  - "cookieandkate.com"
+
+exact_blacklist:
+  - "pagead2.googlesyndication.com"
+
+# Ansible doesn't like "" with regex. Use '' when adding regex.
+regex_whitelist:
+  - '(\.|^)rs6\.net$'
+
+# Ansible doesn't like "" with regex. Use '' when adding regex.
+regex_blacklist:
+  - '^ad([sxv]?[0-9]*|system)[_.-]([^.[:space:]]+\.){1,}|[_.-]ad([sxv]?[0-9]*|system)[_.-]'
+  - '^(.+[_.-])?adse?rv(er?|ice)?s?[0-9]*[_.-]'
+  - '^(.+[_.-])?telemetry[_.-]'
+  - '^adim(age|g)s?[0-9]*[_.-]'
+  - '^adtrack(er|ing)?[0-9]*[_.-]'
+  - '^advert(s|is(ing|ements?))?[0-9]*[_.-]'
+  - '^aff(iliat(es?|ion))?[_.-]'
+  - '^analytics?[_.-]'
+  - '^banners?[_.-]'
+  - '^beacons?[0-9]*[_.-]'
+  - '^count(ers?)?[0-9]*[_.-]'
+  - '^mads\.'
+  - '^pixels?[-.]'
+  - '^stat(s|istics)?[0-9]*[_.-]'
+  - '^track(ing)?[0-9]*[_.-]'

@@ -1,0 +1,64 @@
+---
+- name: Create sync folder.
+  ansible.builtin.file:
+    path: "{{ config_dir }}/pi-hole/sync"
+    state: directory
+    mode: 0755
+  become: false
+
+- name: Install sqlite3.
+  ansible.builtin.apt:
+    name: sqlite3
+    state: present
+
+- name: Install rsync.
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+
+- name: Generate an ed25519 OpenSSH keypair.
+  community.crypto.openssh_keypair:
+    path: .ssh/pihole_sync
+    state: present
+    type: ed25519
+  register: openssh_key
+  become: false
+
+- name: Copy OpenSSH public key to authorized_keys.
+  ansible.posix.authorized_key:
+    key: "{{ openssh_key.public_key }}"
+    user: "{{ ansible_user }}"
+  delegate_to: "{{ hostvars[item].ansible_host }}"
+  loop: "{{ groups['all'] }}"
+  become: false
+
+- name: Add servers to known_hosts.
+  ansible.builtin.known_hosts:
+    name: "{{ hostvars[item].ansible_host }}"
+    state: present
+    key: "{{ lookup('pipe', 'ssh-keyscan {{ hostvars[item].ansible_host }}') }}"
+    hash_host: false
+  with_items: "{{ groups.all }}"
+  become: false
+
+- name: Add VIP to known_hosts.
+  ansible.builtin.known_hosts:
+    name: "{{ virtual_ip }}"
+    state: present
+    key: "{{ lookup('pipe', 'ssh-keyscan {{ virtual_ip }}') }}"
+    hash_host: false
+  become: false
+
+- name: Copy sync.sh to Pi.
+  ansible.builtin.template:
+    src: templates/sync.sh.j2
+    dest: "{{ config_dir }}/pi-hole/sync/sync.sh"
+    mode: '0755'
+  become: false
+
+- name: Set cron job to manage syncing.
+  ansible.builtin.cron:
+    hour: "3"
+    job: "{{ config_dir }}/pi-hole/sync/sync.sh"
+    name: "Pihole sync"
+  become: false
